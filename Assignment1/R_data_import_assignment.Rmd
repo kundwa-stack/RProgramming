@@ -1,0 +1,277 @@
+---
+title: "Assignment for R: Installing Packages and Importing Data from Diverse Sources"
+author: "Kundwa Yves"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+
+```{r install}
+# Packages needed to RUN this document
+needed <- c("haven", "readxl", "writexl", "DBI", "RSQLite", "jsonlite", "dplyr")
+
+# Install only the ones that are missing
+missing_pkgs <- needed[!(needed %in% rownames(installed.packages()))]
+if (length(missing_pkgs) > 0) {
+  install.packages(missing_pkgs, repos = "https://cloud.r-project.org")
+}
+
+# Load all of them
+invisible(lapply(needed, library, character.only = TRUE))
+
+# Confirm everything loaded and show the versions
+data.frame(package = needed,
+           version = sapply(needed, function(p) as.character(packageVersion(p))),
+           row.names = NULL)
+```
+
+```{r folder}
+# All practice files live in a temporary folder: no paths to change
+data_dir <- tempdir()
+```
+
+# 2. Creating the Practice Files
+
+```{r make-files}
+# A small survey dataset WITH labels, to show what haven can preserve
+survey <- data.frame(
+  id     = 1:8,
+  gender = haven::labelled(c(1, 2, 2, 1, 2, 1, 2, 1),
+                           labels = c(Male = 1, Female = 2),
+                           label  = "Gender of respondent"),
+  age    = c(21, 24, 22, 30, 27, 25, 23, 29),
+  score  = c(65, 78, 82, 59, 91, 70, 85, 64)
+)
+
+write_dta(survey,       file.path(data_dir, "survey.dta"))          # Stata
+write_sav(ToothGrowth,  file.path(data_dir, "toothgrowth.sav"))     # SPSS
+write_xpt(women,        file.path(data_dir, "women.xpt"))           # SAS transport
+write.csv(PlantGrowth,  file.path(data_dir, "plantgrowth.csv"), row.names = FALSE)
+
+# An Excel workbook with TWO sheets
+write_xlsx(list(Arrests = cbind(State = rownames(USArrests), USArrests),
+                Cars    = cbind(Model = rownames(mtcars), mtcars)),
+           file.path(data_dir, "workbook.xlsx"))
+
+# A JSON file
+chick_small <- head(ChickWeight[, c("weight", "Time", "Diet")], 12)
+chick_small$Diet <- as.character(chick_small$Diet)
+write(toJSON(chick_small, pretty = TRUE), file.path(data_dir, "chicks.json"))
+```
+
+# 3. Importing from Statistical Packages (`haven`)
+
+## A. Stata (.dta): survey data with labels
+
+```{r stata}
+survey_in <- read_dta(file.path(data_dir, "survey.dta"))
+head(survey_in)
+dim(survey_in)
+```
+
+
+```{r haven-labels}
+attr(survey_in$gender, "label")          # the variable label
+print_labels(survey_in$gender)           # the value labels (1 = Male, 2 = Female)
+
+survey_in$gender_f <- as_factor(survey_in$gender)   # labels become a normal R factor
+table(survey_in$gender_f)
+
+tapply(survey_in$score, survey_in$gender_f, mean)   # average score by gender
+```
+
+## B. SPSS (.sav): vitamin C and tooth growth
+
+```{r spss}
+tooth <- read_sav(file.path(data_dir, "toothgrowth.sav"))
+head(tooth)
+str(tooth)
+```
+
+```{r spss-help}
+# haven imports straight into a data frame that works with dplyr
+tooth |>
+  group_by(supp, dose) |>
+  summarise(mean_length = mean(len), n = n(), .groups = "drop")
+```
+
+## C. SAS transport (.xpt): height and weight of women
+
+```{r sas}
+women_in <- read_xpt(file.path(data_dir, "women.xpt"))
+head(women_in)
+summary(women_in)
+```
+
+```{r sas-help}
+# Quick relationship check once the data is in R
+cor(women_in$height, women_in$weight)
+```
+
+## D. CSV (base R)
+
+```{r csv}
+plant <- read.csv(file.path(data_dir, "plantgrowth.csv"))
+head(plant)
+names(plant)
+```
+
+```{r csv-help}
+plant |>
+  group_by(group) |>
+  summarise(mean_weight = mean(weight), sd_weight = sd(weight))
+```
+
+# 4. Importing from Excel (`readxl`)
+
+```{r excel}
+xl_file <- file.path(data_dir, "workbook.xlsx")
+
+excel_sheets(xl_file)                          # list the sheets in the workbook
+arrests <- read_excel(xl_file, sheet = "Arrests")
+head(arrests)
+```
+
+
+```{r excel-help}
+# Which five states have the highest murder rate?
+arrests |>
+  arrange(desc(Murder)) |>
+  head(5)
+
+# Read ALL sheets at once into a list
+all_sheets <- lapply(excel_sheets(xl_file), function(s) read_excel(xl_file, sheet = s))
+names(all_sheets) <- excel_sheets(xl_file)
+sapply(all_sheets, dim)
+```
+
+# 5. Importing from Databases (`DBI` and `RSQLite`)
+
+## A. SQLite (runs immediately, no server needed)
+
+```{r db-connect}
+con <- dbConnect(RSQLite::SQLite(), file.path(data_dir, "practice.sqlite"))
+
+cars_db <- cbind(model = rownames(mtcars), mtcars)
+rownames(cars_db) <- NULL
+dbWriteTable(con, "cars",  cars_db, overwrite = TRUE)
+dbWriteTable(con, "waits", faithful, overwrite = TRUE)
+
+dbListTables(con)             # tables in the database
+dbListFields(con, "cars")     # columns in the 'cars' table
+```
+
+```{r db-read}
+cars_in <- dbReadTable(con, "cars")      # import a whole table
+head(cars_in)
+```
+
+```{r db-query}
+# Filter rows
+dbGetQuery(con, "
+  SELECT model, mpg, cyl, hp
+  FROM cars
+  WHERE mpg > 25
+  ORDER BY mpg DESC
+")
+
+# Summarise inside the database
+dbGetQuery(con, "
+  SELECT cyl, COUNT(*) AS n_cars, ROUND(AVG(mpg), 1) AS avg_mpg
+  FROM cars
+  GROUP BY cyl
+")
+
+# Safe parameterised query (the ? is filled in by DBI)
+dbGetQuery(con, "SELECT model, hp FROM cars WHERE cyl = ?", params = list(6))
+```
+
+```{r db-close}
+dbDisconnect(con)
+```
+
+## B. MySQL template (needs your own MySQL server)
+
+Change `eval = FALSE` to `eval = TRUE` once your server is running.
+
+```{r mysql, eval=FALSE}
+install.packages("RMariaDB")
+library(RMariaDB)
+
+con_mysql <- dbConnect(RMariaDB::MariaDB(),
+                       host = "localhost", dbname = "your_database",
+                       user = "root", password = "your_password")
+dbListTables(con_mysql)
+dbGetQuery(con_mysql, "SELECT * FROM your_table LIMIT 5")
+dbDisconnect(con_mysql)
+```
+
+## C. Microsoft Access template (Windows only)
+
+```{r access, eval=FALSE}
+install.packages("odbc")
+library(odbc)
+
+con_access <- dbConnect(
+  odbc::odbc(),
+  .connection_string = paste0(
+    "Driver={Microsoft Access Driver (*.mdb, *.accdb)};",
+    "Dbq=C:/path/to/your_database.accdb;"))
+dbListTables(con_access)
+dbDisconnect(con_access)
+```
+
+# 6. Importing JSON and Web APIs (`jsonlite`)
+
+## A. A JSON file
+
+```{r json-file}
+chicks <- fromJSON(file.path(data_dir, "chicks.json"))
+head(chicks)
+str(chicks)
+```
+
+
+```{r json-help}
+toJSON(head(chicks, 2), pretty = TRUE)    # data frame -> JSON text
+```
+
+## B. A live web API (current weather in Kigali)
+
+```{r api}
+url <- paste0("https://api.open-meteo.com/v1/forecast",
+              "?latitude=-1.94&longitude=30.06&current_weather=true")
+
+weather <- tryCatch(fromJSON(url), error = function(e) NULL)
+
+if (!is.null(weather)) {
+  as.data.frame(weather$current_weather)
+} else {
+  cat("No internet connection, so the API chunk was skipped.")
+}
+```
+
+# 7. Using Built-in Datasets
+
+```{r builtin}
+data("mtcars")
+variable.names(mtcars)
+```
+
+Average fuel efficiency by number of cylinders using `by()`:
+
+```{r builtin-by}
+by(mtcars$mpg, mtcars$cyl, mean)
+by(mtcars$mpg, mtcars$cyl, sd)
+```
+
+```{r builtin-plot}
+boxplot(mpg ~ cyl, data = mtcars,
+        main = "Fuel efficiency by cylinders",
+        xlab = "Cylinders", ylab = "Miles per gallon", col = "lightblue")
+```
+
