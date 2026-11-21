@@ -1,0 +1,163 @@
+---title: "Assigment 2"
+author: "Kundwa Yves"
+date: "2026-11-1"
+output: html_document
+---
+
+
+# 1. understanding the imported dataset
+
+first, we need to understand the general structure of the data, including the number of observations, variables, and their data types
+
+```{r}
+# Loading the required packages
+library(tidyverse)
+library(janitor)
+
+# Loading the built-in mtcars dataset
+data <- mtcars
+
+# Checking the first six observations
+head(data)
+
+# Checking the last six observations
+tail(data)
+
+# Displaying variable names
+names(data)
+
+# Checking the structure of the dataset
+str(data)
+
+# Getting a general overview
+glimpse(data)
+
+# Checking the number of rows and columns
+dim(data)
+```
+
+# 2. checking missing values and duplicate observations
+
+before analysing relationships, we should check whether the dataset contains missing values or duplicated records
+
+```{r}
+# Checking missing values in each variable
+colSums(is.na(data))
+
+# Calculating the total number of missing values
+sum(is.na(data))
+
+# Checking duplicated observations
+sum(duplicated(data))
+
+# Removing duplicated observations if they exist
+data <- distinct(data)
+
+# Checking the dataset again
+dim(data)
+```
+
+# 3. descriptive statistics
+
+```{r}
+# Summary statistics of the dataset
+summary(data)
+```
+
+# 4. exploring individual variables
+
+```{r}
+# Histogram of fuel efficiency
+ggplot(data, aes(x = mpg)) +
+  geom_histogram(bins = 10, fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Fuel Efficiency",
+       x = "Miles per Gallon",
+       y = "Frequency") +
+  theme_minimal()
+
+# Boxplot of horsepower
+ggplot(data, aes(y = hp)) +
+  geom_boxplot(fill = "darkgreen") +
+  labs(title = "Distribution of Horsepower",
+       y = "Horsepower") +
+  theme_minimal()
+```
+
+# 5. relationships between categorical and continuous variables
+
+first, convert transmission into a categorical variable
+
+```{r}
+# Converting transmission into categories
+data$transmission <- factor(data$am,
+                            levels = c(0, 1),
+                            labels = c("Automatic", "Manual"))
+```
+
+boxplot: fuel efficiency by transmission type
+
+```{r}
+ggplot(data, aes(x = transmission, y = mpg,
+                 fill = transmission)) +
+  geom_boxplot() +
+  labs(title = "Fuel Efficiency by Transmission Type",
+       x = "Transmission",
+       y = "Miles per Gallon") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+## comparing horsepower by number of cylinders
+
+```{r}
+# Boxplot of horsepower by number of cylinders
+ggplot(data, aes(x = factor(cyl), y = hp, fill = factor(cyl))) +
+  geom_boxplot() +
+  labs(
+    title = "Horsepower by Number of Cylinders",
+    x = "Number of Cylinders",
+    y = "Horsepower"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+comparing average fuel efficiency
+
+```{r}
+data %>%
+  group_by(transmission) %>%
+  summarise(Average_MPG = mean(mpg))
+```
+
+# 6. relationships between two continuous variables
+
+scatter plot with regression line
+
+```{r}
+ggplot(data, aes(x = hp, y = mpg)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", se = TRUE, color = "red") +
+  labs(title = "Relationship Between Horsepower and Fuel Efficiency",
+       x = "Horsepower",
+       y = "Miles per Gallon") +
+  theme_minimal()
+```
+
+correlation coefficient
+
+```{r}
+cor(data$hp, data$mpg)
+cor.test(data$hp, data$mpg)
+```
+
+# 7. correlation between continuous variables
+
+```{r}
+# Selecting continuous variables
+numeric_data <- data %>%
+  select(mpg, disp, hp, drat, wt, qsec)
+
+# Correlation matrix
+cor(numeric_data)
+```

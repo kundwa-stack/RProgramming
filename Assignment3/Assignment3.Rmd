@@ -1,0 +1,151 @@
+---
+title: "Assignment3"
+author: "Kundwa Yves"
+date: "2026-11-01"
+output: html_document
+---
+
+## 1. Here is a function that sums up our data in one go
+
+```{R}
+# Summary stats function: one call, all the numbers you care about
+my_summary <- function(x) {
+  x <- x[!is.na(x)]                      # drop missing values first
+  
+  result <- data.frame(
+    n        = length(x),
+    mean     = mean(x),
+    median   = median(x),
+    sd       = sd(x),
+    variance = var(x),
+    min      = min(x),
+    max      = max(x),
+    range    = max(x) - min(x),
+    q1       = quantile(x, 0.25, names = FALSE),
+    q3       = quantile(x, 0.75, names = FALSE),
+    iqr      = IQR(x)
+  )
+  return(round(result, 3))
+}
+```
+
+```{r}
+# Test drive: proving the function works on real data
+my_summary(mtcars$mpg)
+
+# Sanity check against R's built-in
+summary(mtcars$mpg)
+```
+
+## 2.let's make a function that runs a two-sample t-test by hand
+
+# Two-sample t-test function: are these two groups really different?
+
+```{r}
+my_t_test <- function(x, y) {
+  x <- x[!is.na(x)]
+  y <- y[!is.na(y)]
+  
+  n1 <- length(x);  n2 <- length(y)
+  m1 <- mean(x);    m2 <- mean(y)
+  v1 <- var(x);     v2 <- var(y)
+  
+  # Welch's t-statistic (doesn't assume equal variances)
+  se <- sqrt(v1/n1 + v2/n2)
+  t_stat <- (m1 - m2) / se
+  
+  # Welch-Satterthwaite degrees of freedom
+  df <- (v1/n1 + v2/n2)^2 /
+        ((v1/n1)^2/(n1 - 1) + (v2/n2)^2/(n2 - 1))
+  
+  # Two-tailed p-value
+  p_value <- 2 * pt(-abs(t_stat), df)
+  
+  # 95% confidence interval for the difference in means
+  ci <- (m1 - m2) + c(-1, 1) * qt(0.975, df) * se
+  
+  data.frame(
+    mean_x = round(m1, 3),
+    mean_y = round(m2, 3),
+    t      = round(t_stat, 3),
+    df     = round(df, 2),
+    p      = signif(p_value, 4),
+    ci_low = round(ci[1], 3),
+    ci_high = round(ci[2], 3),
+    decision = ifelse(p_value < 0.05,
+                      "Reject H0: means differ",
+                      "Fail to reject H0")
+  )
+}
+```
+
+```{r}
+# Test drive: do manual and automatic cars burn different amounts of fuel?
+auto   <- mtcars$mpg[mtcars$am == 0]
+manual <- mtcars$mpg[mtcars$am == 1]
+
+my_t_test(auto, manual)
+
+# Sanity check against R's built-in
+t.test(auto, manual)
+```
+
+## 3. functions that belong to apply family
+
+# lapply: run a function on each column and keep the results in a list
+
+```{R}
+nums <- mtcars[, c("mpg", "hp", "wt")]
+
+lapply(nums, mean)
+```
+
+# sapply: same loop as lapply, but the answer comes back as a neat vector
+```{r}
+sapply(nums, mean)
+```
+
+it can also Work with our own function too, and returns a table
+
+```{r}
+sapply(nums, my_summary)
+```
+
+# tapply: average fuel use for each cylinder group
+
+```{r}
+tapply(mtcars$mpg, mtcars$cyl, mean)
+```
+
+Another example: average mpg for automatic vs manual
+
+```{r}
+tapply(mtcars$mpg, mtcars$am, mean)
+```
+
+# apply: summarise a matrix by rows or by columns
+
+```{r}
+m <- as.matrix(mtcars[, c("mpg", "hp", "wt")])
+
+apply(m, 2, mean)   # 2 = go down each column
+apply(m, 1, sum)    # 1 = go across each row
+```
+
+# mapply: take the 1st item from each input, then the 2nd, and so on
+
+```{r}
+mapply(function(x, y) x + y, 1:5, 6:10)
+```
+
+Practical example: repeat a word a different number of times
+
+```{r}
+mapply(rep, c("a", "b", "c"), 3:1)
+```
+
+Using our own t-test idea: compare mpg with hp-scaled values pairwise
+
+```{r}
+mapply(function(a, b) round(a / b, 2), mtcars$mpg[1:5], mtcars$cyl[1:5])
+```
