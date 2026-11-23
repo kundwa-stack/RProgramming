@@ -1,0 +1,146 @@
+---
+title: "ggplot2"
+author: "Kundwa Yves"
+date: "2026-11-12"
+output: html_document
+---
+
+# we first load packages and datasets
+
+```{r}
+library(ggplot2)
+
+data <- mtcars
+data$cyl <- as.factor(data$cyl)
+data$gear <- as.factor(data$gear)
+data$am <- as.factor(data$am)
+```
+
+# geom_bar() – Number of cars by cylinders
+
+```{r}
+ggplot(data, aes(x = cyl)) +
+  geom_bar(fill = "steelblue") +
+  labs(title = "Number of Cars by Cylinders",
+       x = "Cylinders", y = "Count")
+```
+
+# geom_boxplot() – MPG by cylinders
+
+```{r}
+ggplot(data, aes(x = cyl, y = mpg, fill = cyl)) +
+  geom_boxplot() +
+  labs(title = "MPG by Number of Cylinders",
+       x = "Cylinders", y = "MPG")
+```
+
+# geom_density() – Distribution of MPG
+
+```{r}
+ggplot(data, aes(x = mpg)) +
+  geom_density(fill = "skyblue", alpha = 0.5) +
+  labs(title = "Density Distribution of MPG",
+       x = "MPG", y = "Density")
+```
+
+# geom_histogram() – Distribution of horsepower
+
+```{r}
+ggplot(data, aes(x = hp)) +
+  geom_histogram(fill = "orange", bins = 10) +
+  labs(title = "Distribution of Horsepower",
+       x = "Horsepower", y = "Frequency")
+```
+
+# geom_hline() – Horizontal reference line
+
+```{r}
+ggplot(data, aes(x = wt, y = mpg)) +
+  geom_point() +
+  geom_hline(yintercept = mean(data$mpg),
+             color = "red") +
+  labs(title = "MPG and Weight",
+       x = "Weight", y = "MPG")
+```
+
+# geom_jitter() – MPG by transmission
+
+``` {r}
+ggplot(data, aes(x = am, y = mpg)) +
+  geom_jitter(width = 0.15, color = "blue") +
+  labs(title = "MPG by Transmission",
+       x = "Transmission (0 = Automatic, 1 = Manual)",
+       y = "MPG")
+```
+
+# geom_line() – MPG across observations
+
+```{r}
+ggplot(data, aes(x = seq_along(mpg), y = mpg)) +
+  geom_line(color = "blue") +
+  labs(title = "MPG Across Cars",
+       x = "Car Number", y = "MPG")
+```
+
+# geom_point() – Weight versus MPG
+
+```{r}
+ggplot(data, aes(x = wt, y = mpg)) +
+  geom_point(color = "darkgreen") +
+  labs(title = "Weight versus MPG",
+       x = "Weight", y = "MPG")
+```
+
+# geom_rug() – MPG and horsepower
+
+```{r}
+ggplot(data, aes(x = hp, y = mpg)) +
+  geom_point() +
+  geom_rug(color = "red") +
+  labs(title = "MPG versus Horsepower",
+       x = "Horsepower", y = "MPG")
+```
+
+# geom_smooth() – Trend between weight and MPG
+
+```{r}
+ggplot(data, aes(x = wt, y = mpg)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Linear Relationship Between Weight and MPG",
+       x = "Weight", y = "MPG")
+```
+
+# geom_text() – Add labels to cars
+
+```{r}
+data$car <- rownames(data)
+
+selected_cars <- data[1:8, ]
+
+ggplot(selected_cars, aes(x = wt, y = mpg)) +
+  geom_point(color = "blue") +
+  geom_text(aes(label = car), size = 3, vjust = -0.8) +
+  labs(title = "Weight and MPG of Selected Cars",
+       x = "Weight", y = "MPG")
+```
+
+# geom_violin() – MPG by cylinders
+
+```{r}
+ggplot(data, aes(x = cyl, y = mpg, fill = cyl)) +
+  geom_violin() +
+  labs(title = "MPG Distribution by Cylinders",
+       x = "Cylinders", y = "MPG")
+```
+
+# geom_vline() – Vertical reference line
+
+```{r}
+ggplot(data, aes(x = hp, y = mpg)) +
+  geom_point() +
+  geom_vline(xintercept = mean(data$hp),
+             color = "red") +
+  labs(title = "MPG versus Horsepower",
+       x = "Horsepower", y = "MPG")
+```
