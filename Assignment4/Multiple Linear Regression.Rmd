@@ -1,0 +1,120 @@
+---
+title: "Assignment 4"
+author: "Kundwa Yves"
+date: "2026-11-8"
+output: html_document
+---
+
+
+# Introduction
+
+for this analysis, we will use the mtcars dataset, which contains information about 32 different car models
+
+the objective is to investigate how different car characteristics influence fuel efficiency, measured in miles per gallon (MPG).
+
+we will use:
+- dependent variable: mpg – fuel efficiency.
+- independent variable 1: wt – car weight.
+- independent variable 2: hp – horsepower.
+we want to understand whether car weight and horsepower can jointly explain differences in fuel efficiency
+
+# loading and exploring the dataset
+
+```{r}
+# Loading the required package
+library(tidyverse)
+
+# Loading the dataset
+data <- mtcars
+
+# Viewing the first six observations
+head(data)
+
+# Checking the structure
+str(data)
+
+# Checking the dimensions
+dim(data)
+
+# Summary statistics
+summary(data)
+```
+
+# exploring relationships between variables
+
+before fitting the regression model, we examine the relationships between the variables
+
+```{r}
+# Relationship between car weight and fuel efficiency
+plot(data$wt, data$mpg,
+     main = "Car Weight vs Fuel Efficiency",
+     xlab = "Weight (1000 lbs)",
+     ylab = "Miles per Gallon")
+
+# Relationship between horsepower and fuel efficiency
+plot(data$hp, data$mpg,
+     main = "Horsepower vs Fuel Efficiency",
+     xlab = "Horsepower",
+     ylab = "Miles per Gallon")
+```
+
+# fitting the multiple linear regression model
+
+now we fit a multiple linear regression model using car weight and horsepower to predict fuel efficiency
+
+```{r}
+# Fitting the multiple linear regression model
+model <- lm(mpg ~ wt + hp, data = data)
+
+# Displaying the regression results
+summary(model)
+```
+
+
+interpretation of the coefficients:
+1. intercept (37.227): when weight and horsepower are both zero, the predicted MPG is approximately 37.227. This is mainly a mathematical starting point rather than a realistic car scenario.
+2. weight (-3.878): holding horsepower constant, an increase of one unit in car weight (1,000 lbs) is associated with a decrease of approximately 3.878 MPG.
+3. horsepower (-0.032): holding car weight constant, an increase of one horsepower is associated with a decrease of approximately 0.032 MPG.
+Both coefficients are negative, suggesting that heavier and more powerful cars tend to have lower fuel efficiency.
+
+# Evaluating the model
+
+from the regression output, we examine the R-squared value and the p-values.
+
+For this model, the approximate results are:
+- R-squared: 0.827
+- Adjusted R-squared: 0.815
+
+Interpretation:
+
+The R-squared value of approximately 0.827 means that car weight and horsepower together explain about 82.7% of the variation in fuel efficiency among the cars in this dataset.
+
+The remaining 17.3% is not explained by these two predictors and may be associated with other factors.
+
+The overall regression model is statistically significant (p-value below 0.001).
+
+# Checking the regression diagnostics
+
+we can use the standard R diagnostic plots to examine whether the regression assumptions are reasonably satisfied.
+
+```{r}
+plot(residuals(model),
+     main = "Residual Plot",
+     ylab = "Residuals")
+abline(h = 0, col = "red")
+
+hist(residuals(model),
+     main = "Histogram of Residuals",
+     col = "skyblue")
+
+plot(cooks.distance(model),
+     main = "Cook's Distance",
+     ylab = "Cook's Distance")
+```
+
+# Conclusion
+
+the multiple linear regression analysis shows that car weight and horsepower are negatively associated with fuel efficiency. the results suggest that heavier cars and cars with higher horsepower generally consume more fuel per mile.
+the model explains approximately 82.7% of the variation in fuel efficiency, indicating that these two variables provide a good explanation of differences in MPG within this dataset
+
+
